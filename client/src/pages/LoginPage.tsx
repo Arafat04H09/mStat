@@ -29,7 +29,7 @@ function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/dashboard");
+      navigate("/insights");
     } catch (error: any) {
       setError(error.message);
     }
@@ -38,12 +38,11 @@ function LoginPage() {
   const signInWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-      navigate("/dashboard");
+      navigate("/insights");
     } catch (e) {
       console.error(e);
     }
   };
-
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
