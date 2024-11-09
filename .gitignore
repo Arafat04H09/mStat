@@ -49,6 +49,7 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env
 
 # Firebase config (if you have a separate file)
 firebase.config.js
