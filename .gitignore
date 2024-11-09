@@ -64,3 +64,6 @@ package-lock.json
 yarn.lock
 
 google_credentials.json
+
+package.json
+.gitignore
