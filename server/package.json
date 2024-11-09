@@ -14,6 +14,7 @@
   "dependencies": {
     "@firebase/app": "^0.10.12",
     "@firebase/auth": "^1.7.9",
+    "@google-cloud/bigquery": "^7.9.1",
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "express-fileupload": "^1.5.1",
