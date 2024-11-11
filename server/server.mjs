@@ -9,15 +9,12 @@ const bigquery = new BigQuery();
 
 const datasetId = 'user_data';
 
-// Configure CORS
 const corsOptions = {
-  origin: ["http://localhost:5173"],  // Replace with your frontend's URL
+  origin: ["http://localhost:5173"],  
 };
 app.use(cors(corsOptions));
 
-// Function to sanitize and generate a valid BigQuery table ID
 function generateTableId(email) {
-  // Replace '@' and '.' with underscores, ensuring the result is valid
   return `${email.replace(/[@.]/g, '_')}_temp_table`.toLowerCase();
 }
 
@@ -32,11 +29,9 @@ async function uploadInChunks(datasetId, tableId, rows, chunkSize = 1000) {
       console.log(`Inserted rows ${i} to ${i + chunk.length}`);
     } catch (error) {
       console.error(`Error inserting chunk ${i} to ${i + chunk.length}:`, error);
-      // You might want to implement retry logic here
     }
   }
 }
-// Define schema globally
 const schema = [
   { name: 'ts', type: 'TIMESTAMP' },
   { name: 'username', type: 'STRING' },
@@ -70,7 +65,6 @@ app.post('/start-session', async (req, res) => {
   const tableId = generateTableId(email);
 
   try {
-    // Create the table if it doesn't exist
     const [tableExists] = await bigquery.dataset(datasetId).table(tableId).exists();
     if (!tableExists) {
       await bigquery.dataset(datasetId).createTable(tableId, { schema });
@@ -105,7 +99,6 @@ app.post('/upload', upload.array('files', 20), async (req, res) => {
         const rawData = JSON.parse(file.buffer.toString());
         const rows = Array.isArray(rawData) ? rawData : [rawData];
 
-        // Format each row to match the schema, handling missing fields and conversions
         const formattedRows = rows.map((row) => ({
           ts: row.ts || null,
           username: row.username || '',
@@ -157,8 +150,8 @@ app.post('/finish-session', async (req, res) => {
   }
 
   try {
-    // Query insights
-    const insightsQuery = `
+    // Basic insights
+    const basicInsightsQuery = `
       SELECT
         COUNT(*) AS total_records,
         COUNT(DISTINCT username) AS unique_users,
@@ -168,15 +161,114 @@ app.post('/finish-session', async (req, res) => {
       FROM \`${datasetId}.${tableId}\`
     `;
 
-    const [insightsRows] = await bigquery.query(insightsQuery);
+    // Top tracks
+    const topTracksQuery = `
+      SELECT
+        master_metadata_track_name,
+        master_metadata_album_artist_name,
+        COUNT(*) as play_count,
+        SUM(ms_played) as total_ms_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY master_metadata_track_name, master_metadata_album_artist_name
+      ORDER BY play_count DESC
+      LIMIT 10
+    `;
+
+    // Top artists
+    const topArtistsQuery = `
+      SELECT
+        master_metadata_album_artist_name,
+        COUNT(*) as track_count,
+        SUM(ms_played) as total_ms_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY master_metadata_album_artist_name
+      ORDER BY total_ms_played DESC
+      LIMIT 10
+    `;
+
+    // Listening time distribution
+    const timeDistributionQuery = `
+      SELECT
+        EXTRACT(HOUR FROM ts) as hour_of_day,
+        EXTRACT(DAYOFWEEK FROM ts) as day_of_week,
+        COUNT(*) as play_count,
+        SUM(ms_played) as total_ms_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY hour_of_day, day_of_week
+      ORDER BY day_of_week, hour_of_day
+    `;
+
+    // Seasonal top tracks
+    const seasonalTopTracksQuery = `
+      WITH seasons AS (
+        SELECT *,
+          CASE
+            WHEN EXTRACT(MONTH FROM ts) IN (12, 1, 2) THEN 'Winter'
+            WHEN EXTRACT(MONTH FROM ts) IN (3, 4, 5) THEN 'Spring'
+            WHEN EXTRACT(MONTH FROM ts) IN (6, 7, 8) THEN 'Summer'
+            ELSE 'Fall'
+          END AS season
+        FROM \`${datasetId}.${tableId}\`
+      ),
+      ranked_tracks AS (
+        SELECT
+          season,
+          master_metadata_track_name,
+          master_metadata_album_artist_name,
+          COUNT(*) as play_count,
+          ROW_NUMBER() OVER (PARTITION BY season ORDER BY COUNT(*) DESC) as rank
+        FROM seasons
+        GROUP BY season, master_metadata_track_name, master_metadata_album_artist_name
+      )
+      SELECT
+        season,
+        master_metadata_track_name,
+        master_metadata_album_artist_name,
+        play_count
+      FROM ranked_tracks
+      WHERE rank <= 5
+      ORDER BY season, play_count DESC
+    `;
+
+    // Platform usage
+    const platformUsageQuery = `
+      SELECT
+        platform,
+        COUNT(*) as use_count,
+        SUM(ms_played) as total_ms_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY platform
+      ORDER BY use_count DESC
+    `;
+
+    // Execute all queries
+    const [basicInsights] = await bigquery.query(basicInsightsQuery);
+    const [topTracks] = await bigquery.query(topTracksQuery);
+    const [topArtists] = await bigquery.query(topArtistsQuery);
+    const [timeDistribution] = await bigquery.query(timeDistributionQuery);
+    const [seasonalTopTracks] = await bigquery.query(seasonalTopTracksQuery);
+    const [platformUsage] = await bigquery.query(platformUsageQuery);
 
     // Delete the table after getting insights
     await bigquery.dataset(datasetId).table(tableId).delete();
     console.log(`Table ${tableId} deleted.`);
+    console.log(basicInsights);
+    console.log(topTracks);
+    console.log(topArtists);
+    console.log(timeDistribution);
+    console.log(seasonalTopTracks);
+    console.log(platformUsage);
 
     res.status(200).send({ 
       message: 'Session finished successfully!',
-      insights: insightsRows 
+      insights: {
+        basicInsights: basicInsights[0],
+        topTracks,
+        topArtists,
+        timeDistribution,
+        seasonalTopTracks,
+        platformUsage
+      }
     });
   } catch (error) {
     console.error('Error finishing session:', error);
@@ -184,7 +276,6 @@ app.post('/finish-session', async (req, res) => {
   }
 });
 
-// Start the server
 app.listen(8080, () => {
   console.log("Server started on port 8080");
 });
