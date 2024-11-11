@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from '../config/firebase';
 
-const FileUpload: React.FC = () => {
+interface FileUploadProps {
+  onUploadComplete: () => void;
+}
+
+const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [tableId, setTableId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [progress, setProgress] = useState<number>(0);
   const [isSessionLoading, setIsSessionLoading] = useState<boolean>(true);
-  const [insights, setInsights] = useState<any | null>(null);
 
   useEffect(() => {
     const storedTableId = localStorage.getItem('tableId');
@@ -58,7 +61,6 @@ const FileUpload: React.FC = () => {
       setError(null);
       setSuccess(null);
       setProgress(0);
-      setInsights(null);
     }
   };
 
@@ -67,8 +69,7 @@ const FileUpload: React.FC = () => {
     if (!user || !tableId) throw new Error('User not logged in or session not started');
 
     const formData = new FormData();
-    const renamedFile = new File([file], `${user.email}-data-upload-${index + 1}.json`, { type: file.type });
-    formData.append('files', renamedFile);
+    formData.append('files', file);
 
     const response = await fetch(`http://localhost:8080/upload?tableId=${tableId}`, {
       method: 'POST',
@@ -110,7 +111,6 @@ const FileUpload: React.FC = () => {
     setError(null);
     setSuccess(null);
     setProgress(0);
-    setInsights(null);
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -119,9 +119,9 @@ const FileUpload: React.FC = () => {
         setSuccess(`Uploaded ${i + 1} of ${files.length} files`);
       }
 
-      const result = await finishSession();
-      setInsights(result.insights);
-      setSuccess('All files uploaded successfully. Insights retrieved.');
+      await finishSession();
+      setSuccess('All files uploaded successfully. Insights generated.');
+      onUploadComplete(); 
     } catch (error) {
       console.error('Upload error:', error);
       setError(`Error: ${(error as Error).message}`);
@@ -141,17 +141,11 @@ const FileUpload: React.FC = () => {
         <button onClick={startSession}>Start New Session</button>
       ) : (
         <>
-          <input type="file" multiple onChange={handleFileChange} />
-          <button onClick={handleUpload}>Upload</button>
+          <input type="file" multiple onChange={handleFileChange} accept=".json" />
+          <button onClick={handleUpload} disabled={files.length === 0}>Upload</button>
           {error && <div style={{ color: 'red' }}>{error}</div>}
           {success && <div style={{ color: 'green' }}>{success}</div>}
           {progress > 0 && <progress value={progress} max="100" />}
-          {insights && (
-            <div>
-              <h3>Insights:</h3>
-              <pre>{JSON.stringify(insights, null, 2)}</pre>
-            </div>
-          )}
         </>
       )}
     </div>
