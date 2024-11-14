@@ -290,7 +290,6 @@ app.post('/finish-session', async (req, res) => {
       ORDER BY minutes_played DESC;
     `;
 
-    // Execute all queries
     const [topArtistsByPlayCount] = await bigquery.query(topArtistsByPlayCountQuery);
     const [topAlbumsByPlayCount] = await bigquery.query(topAlbumsByPlayCountQuery);
     const [topTracksByPlayCount] = await bigquery.query(topTracksByPlayCountQuery);
@@ -304,6 +303,29 @@ app.post('/finish-session', async (req, res) => {
     const [listeningTimeByDayOfWeek] = await bigquery.query(listeningTimeByDayOfWeekQuery);
     const [listeningTimeByHourOfDay] = await bigquery.query(listeningTimeByHourOfDayQuery);
 
+    const uniqueTracks = new Set();
+    const uniqueArtists = new Set();
+    const uniqueAlbums = new Set();
+
+    [topTracksByPlayCount, topTracksByMinutesPlayed, topTracksByYearMonthPlayCount, topTracksByYearMonthMinutesPlayed].forEach(tracks => {
+      tracks.forEach(track => {
+        safeAdd(uniqueTracks, track.track || track.master_metadata_track_name);
+        safeAdd(uniqueArtists, track.master_metadata_album_artist_name);
+      });
+    });
+
+    [topAlbumsByPlayCount, topAlbumsByMinutesPlayed].forEach(albums => {
+      albums.forEach(album => {
+        safeAdd(uniqueAlbums, album.master_metadata_album_album_name);
+      });
+    });
+
+    [topArtistsByPlayCount, topArtistsByMinutesPlayed, topArtistsByYear, topArtistsByYearAndMinutesPlayed].forEach(artists => {
+      artists.forEach(artist => {
+        safeAdd(uniqueArtists,artist.master_metadata_album_artist_name);
+      });
+    });
+
     const insights = {
       topArtistsByPlayCount,
       topAlbumsByPlayCount,
@@ -316,7 +338,12 @@ app.post('/finish-session', async (req, res) => {
       topTracksByYearMonthPlayCount,
       topTracksByYearMonthMinutesPlayed,
       listeningTimeByDayOfWeek,
-      listeningTimeByHourOfDay
+      listeningTimeByHourOfDay,
+      uniqueItems: {
+        tracks: Array.from(uniqueTracks),
+        artists: Array.from(uniqueArtists),
+        albums: Array.from(uniqueAlbums)
+      }
     };
 
     await storeInsights(tableId, insights);
