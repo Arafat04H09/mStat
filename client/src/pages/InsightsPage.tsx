@@ -2,40 +2,59 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 
 interface InsightsData {
-  basicInsights: {
-    total_records: number;
-    unique_users: number;
-    avg_play_time: number;
-    first_play: string;
-    last_play: string;
-  };
-  topTracks: Array<{
-    master_metadata_track_name: string;
-    master_metadata_album_artist_name: string;  
-    play_count: number;
-    total_ms_played: number;
+  topArtistsByPlayCount: Array<{
+    artist: string;
+    total_plays: number;
   }>;
-  topArtists: Array<{
-    master_metadata_album_artist_name: string;
-    track_count: number;
-    total_ms_played: number;
+  topAlbumsByPlayCount: Array<{
+    album: string;
+    total_plays: number;
   }>;
-  timeDistribution: Array<{
-    hour_of_day: number;
+  topTracksByPlayCount: Array<{
+    track: string;
+    total_plays: number;
+  }>;
+  topArtistsByMinutesPlayed: Array<{
+    artist: string;
+    minutes_played: number;
+  }>;
+  topAlbumsByMinutesPlayed: Array<{
+    album: string;
+    minutes_played: number;
+  }>;
+  topTracksByMinutesPlayed: Array<{
+    track: string;
+    minutes_played: number;
+  }>;
+  topArtistsByYear: Array<{
+    artist: string;
+    year: number;
+    total_plays: number;
+  }>;
+  topArtistsByYearAndMinutesPlayed: Array<{
+    artist: string;
+    year: number;
+    minutes_played: number;
+  }>;
+  topTracksByYearMonthPlayCount: Array<{
+    track: string;
+    year: number;
+    month: number;
+    total_plays: number;
+  }>;
+  topTracksByYearMonthMinutesPlayed: Array<{
+    track: string;
+    year: number;
+    month: number;
+    minutes_played: number;
+  }>;
+  listeningTimeByDayOfWeek: Array<{
     day_of_week: number;
-    play_count: number;
-    total_ms_played: number;
+    minutes_played: number;
   }>;
-  seasonalTopTracks: Array<{
-    season: string;
-    master_metadata_track_name: string;
-    master_metadata_album_artist_name: string;
-    play_count: number;
-  }>;
-  platformUsage: Array<{
-    platform: string;
-    use_count: number;
-    total_ms_played: number;
+  listeningTimeByHourOfDay: Array<{
+    hour_of_day: number;
+    minutes_played: number;
   }>;
 }
 
@@ -47,97 +66,62 @@ const InsightsPage: React.FC = () => {
     return <div>No insights data available. Please upload your data first.</div>;
   }
 
+  const renderTable = (data: any[], columns: string[], title: string) => (
+    <div>
+      <h3>{title}</h3>
+      <table>
+        <thead>
+          <tr>
+            {columns.map((col) => (
+              <th key={col}>{col}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.slice(0, 10).map((item, index) => (
+            <tr key={index}>
+              {columns.map((col) => (
+                <td key={col}>{item[col]}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div>
       <h1>Your Music Insights</h1>
 
-      <h2>Basic Insights</h2>
-      <table>
-        <tbody>
-          <tr>
-            <td>Total Records</td>
-            <td>{insights.basicInsights.total_records}</td>
-          </tr>
-          <tr>
-            <td>Unique Users</td>
-            <td>{insights.basicInsights.unique_users}</td>
-          </tr>
-          <tr>
-            <td>Average Play Time</td>
-            <td>{(insights.basicInsights.avg_play_time / 1000).toFixed(2)} seconds</td>
-          </tr>
-          <tr>
-            <td>First Play</td>
-            <td>{new Date(insights.basicInsights.first_play).toLocaleString()}</td>
-          </tr>
-          <tr>
-            <td>Last Play</td>
-            <td>{new Date(insights.basicInsights.last_play).toLocaleString()}</td>
-          </tr>
-        </tbody>
-      </table>
+      {renderTable(insights.topArtistsByPlayCount, ['artist', 'total_plays'], 'Top Artists by Play Count')}
+      {renderTable(insights.topAlbumsByPlayCount, ['album', 'total_plays'], 'Top Albums by Play Count')}
+      {renderTable(insights.topTracksByPlayCount, ['track', 'total_plays'], 'Top Tracks by Play Count')}
+      {renderTable(insights.topArtistsByMinutesPlayed, ['artist', 'minutes_played'], 'Top Artists by Minutes Played')}
+      {renderTable(insights.topAlbumsByMinutesPlayed, ['album', 'minutes_played'], 'Top Albums by Minutes Played')}
+      {renderTable(insights.topTracksByMinutesPlayed, ['track', 'minutes_played'], 'Top Tracks by Minutes Played')}
+      {renderTable(insights.topArtistsByYear, ['artist', 'year', 'total_plays'], 'Top Artists by Year')}
+      {renderTable(insights.topArtistsByYearAndMinutesPlayed, ['artist', 'year', 'minutes_played'], 'Top Artists by Year and Minutes Played')}
+      {renderTable(insights.topTracksByYearMonthPlayCount, ['track', 'year', 'month', 'total_plays'], 'Top Tracks by Year, Month, and Play Count')}
+      {renderTable(insights.topTracksByYearMonthMinutesPlayed, ['track', 'year', 'month', 'minutes_played'], 'Top Tracks by Year, Month, and Minutes Played')}
 
-      <h2>Top Tracks</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Track Name</th>
-            <th>Artist</th>
-            <th>Play Count</th>
-            <th>Total Time Played</th>
-          </tr>
-        </thead>
-        <tbody>
-          {insights.topTracks.slice(0, 10).map((track, index) => (
-            <tr key={index}>
-              <td>{track.master_metadata_track_name}</td>
-              <td>{track.master_metadata_album_artist_name}</td>
-              <td>{track.play_count}</td>
-              <td>{(track.total_ms_played / 60000).toFixed(2)} minutes</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <section>
+        <h2>Listening Time by Day of Week</h2>
+        {insights.listeningTimeByDayOfWeek.map((day) => (
+          <p key={day.day_of_week}>
+            Day {day.day_of_week}: {day.minutes_played.toFixed(2)} minutes
+          </p>
+        ))}
+      </section>
 
-      <h2>Top Artists</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Artist</th>
-            <th>Track Count</th>
-            <th>Total Time Played</th>
-          </tr>
-        </thead>
-        <tbody>
-          {insights.topArtists.slice(0, 10).map((artist, index) => (
-            <tr key={index}>
-              <td>{artist.master_metadata_album_artist_name}</td>
-              <td>{artist.track_count}</td>
-              <td>{(artist.total_ms_played / 3600000).toFixed(2)} hours</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <h2>Platform Usage</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Platform</th>
-            <th>Use Count</th>
-            <th>Total Time Used</th>
-          </tr>
-        </thead>
-        <tbody>
-          {insights.platformUsage.map((platform, index) => (
-            <tr key={index}>
-              <td>{platform.platform}</td>
-              <td>{platform.use_count}</td>
-              <td>{(platform.total_ms_played / 3600000).toFixed(2)} hours</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <section>
+        <h2>Listening Time by Hour of Day</h2>
+        {insights.listeningTimeByHourOfDay.map((hour) => (
+          <p key={hour.hour_of_day}>
+            Hour {hour.hour_of_day}: {hour.minutes_played.toFixed(2)} minutes
+          </p>
+        ))}
+      </section>
     </div>
   );
 };
