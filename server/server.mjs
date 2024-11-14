@@ -166,73 +166,157 @@ app.post('/finish-session', async (req, res) => {
     return res.status(400).send('Table ID is required.');
   }
   try {
-    const basicInsightsQuery = `
-      SELECT COUNT(*) AS total_records, COUNT(DISTINCT username) AS unique_users, AVG(ms_played) AS avg_play_time, MIN(ts) AS first_play, MAX(ts) AS last_play
-      FROM \`${datasetId}.${tableId}\`
-    `;
-    const topTracksQuery = `
-      SELECT master_metadata_track_name, master_metadata_album_artist_name, COUNT(*) as play_count, SUM(ms_played) as total_ms_played
-      FROM \`${datasetId}.${tableId}\`
-      GROUP BY master_metadata_track_name, master_metadata_album_artist_name
-      ORDER BY play_count DESC
-      LIMIT 50
-    `;
-    const topArtistsQuery = `
-      SELECT master_metadata_album_artist_name, COUNT(*) as track_count, SUM(ms_played) as total_ms_played
+    // Top Artists by Play Count
+    const topArtistsByPlayCountQuery = `
+      SELECT master_metadata_album_artist_name AS artist, 
+             COUNT(*) AS total_plays
       FROM \`${datasetId}.${tableId}\`
       GROUP BY master_metadata_album_artist_name
-      ORDER BY total_ms_played DESC
-      LIMIT 50
-    `;
-    const timeDistributionQuery = `
-      SELECT EXTRACT(HOUR FROM ts) as hour_of_day, EXTRACT(DAYOFWEEK FROM ts) as day_of_week, COUNT(*) as play_count, SUM(ms_played) as total_ms_played
-      FROM \`${datasetId}.${tableId}\`
-      GROUP BY hour_of_day, day_of_week
-      ORDER BY day_of_week, hour_of_day
-    `;
-    const seasonalTopTracksQuery = `
-      WITH seasons AS (
-        SELECT *,
-          CASE
-            WHEN EXTRACT(MONTH FROM ts) IN (12, 1, 2) THEN 'Winter'
-            WHEN EXTRACT(MONTH FROM ts) IN (3, 4, 5) THEN 'Spring'
-            WHEN EXTRACT(MONTH FROM ts) IN (6, 7, 8) THEN 'Summer'
-            ELSE 'Fall'
-          END AS season
-        FROM \`${datasetId}.${tableId}\`
-      ),
-      ranked_tracks AS (
-        SELECT season, master_metadata_track_name, master_metadata_album_artist_name, COUNT(*) as play_count,
-          ROW_NUMBER() OVER (PARTITION BY season ORDER BY COUNT(*) DESC) as rank
-        FROM seasons
-        GROUP BY season, master_metadata_track_name, master_metadata_album_artist_name
-      )
-      SELECT season, master_metadata_track_name, master_metadata_album_artist_name, play_count
-      FROM ranked_tracks
-      WHERE rank <= 50
-      ORDER BY season, play_count DESC
-    `;
-    const platformUsageQuery = `
-      SELECT platform, COUNT(*) as use_count, SUM(ms_played) as total_ms_played
-      FROM \`${datasetId}.${tableId}\`
-      GROUP BY platform
-      ORDER BY use_count DESC
+      ORDER BY total_plays DESC
+      LIMIT 100;
     `;
 
-    const [basicInsights] = await bigquery.query(basicInsightsQuery);
-    const [topTracks] = await bigquery.query(topTracksQuery);
-    const [topArtists] = await bigquery.query(topArtistsQuery);
-    const [timeDistribution] = await bigquery.query(timeDistributionQuery);
-    const [seasonalTopTracks] = await bigquery.query(seasonalTopTracksQuery);
-    const [platformUsage] = await bigquery.query(platformUsageQuery);
+    // Top Albums by Play Count
+    const topAlbumsByPlayCountQuery = `
+      SELECT master_metadata_album_album_name AS album,
+             COUNT(*) as total_plays
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY master_metadata_album_album_name
+      ORDER BY total_plays DESC
+      LIMIT 100;
+    `;
+
+    // Top Tracks by Play Count
+    const topTracksByPlayCountQuery = `
+      SELECT master_metadata_track_name AS track,
+             COUNT(*) as total_plays
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY master_metadata_track_name
+      ORDER BY total_plays DESC
+      LIMIT 100;
+    `;
+
+    // Top Artists by Minutes Played
+    const topArtistsByMinutesPlayedQuery = `
+      SELECT master_metadata_album_artist_name AS artist,
+             SUM(ms_played) / 60000 AS minutes_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY master_metadata_album_artist_name
+      ORDER BY minutes_played DESC
+      LIMIT 100;
+    `;
+
+    // Top Albums by Minutes Played
+    const topAlbumsByMinutesPlayedQuery = `
+      SELECT master_metadata_album_album_name AS album,
+             SUM(ms_played) / 60000 AS minutes_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY master_metadata_album_album_name
+      ORDER BY minutes_played DESC
+      LIMIT 100;
+    `;
+
+    // Top Tracks by Minutes Played
+    const topTracksByMinutesPlayedQuery = `
+      SELECT master_metadata_track_name AS track,
+             SUM(ms_played) / 60000 AS minutes_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY master_metadata_track_name
+      ORDER BY minutes_played DESC
+      LIMIT 100;
+    `;
+
+    // Top Artists by Year
+    const topArtistsByYearQuery = `
+      SELECT master_metadata_album_artist_name AS artist, 
+             EXTRACT(YEAR FROM ts) AS year,
+             COUNT(*) AS total_plays
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY artist, year
+      ORDER BY total_plays DESC
+      LIMIT 50;
+    `;
+
+    // Top Artists by Year and Minutes Played
+    const topArtistsByYearAndMinutesPlayedQuery = `
+      SELECT master_metadata_album_artist_name AS artist, 
+             EXTRACT(YEAR FROM ts) AS year,
+             SUM(ms_played)/60000 AS minutes_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY artist, year
+      ORDER BY minutes_played DESC
+      LIMIT 50;
+    `;
+
+    // Top Tracks by Year, Month, and Play Count
+    const topTracksByYearMonthPlayCountQuery = `
+      SELECT master_metadata_track_name AS track, 
+             EXTRACT(YEAR FROM ts) AS year,
+             EXTRACT(MONTH FROM ts) AS month,
+             COUNT(*) AS total_plays
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY track, year, month
+      ORDER BY total_plays DESC
+      LIMIT 50;
+    `;
+
+    // Top Tracks by Year, Month, and Minutes Played
+    const topTracksByYearMonthMinutesPlayedQuery = `
+      SELECT master_metadata_track_name AS track, 
+             EXTRACT(YEAR FROM ts) AS year,
+             EXTRACT(MONTH FROM ts) AS month,
+             SUM(ms_played)/60000 AS minutes_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY track, year, month
+      ORDER BY minutes_played DESC
+      LIMIT 50;
+    `;
+
+    // Listening Time by Day of Week
+    const listeningTimeByDayOfWeekQuery = `
+      SELECT EXTRACT(DAYOFWEEK FROM ts) AS day_of_week, 
+             SUM(ms_played)/60000 as minutes_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY day_of_week
+      ORDER BY minutes_played DESC;
+    `;
+
+    // Listening Time by Hour of Day
+    const listeningTimeByHourOfDayQuery = `
+      SELECT EXTRACT(HOUR FROM ts) AS hour_of_day, 
+             SUM(ms_played)/60000 as minutes_played
+      FROM \`${datasetId}.${tableId}\`
+      GROUP BY hour_of_day
+      ORDER BY minutes_played DESC;
+    `;
+
+    // Execute all queries
+    const [topArtistsByPlayCount] = await bigquery.query(topArtistsByPlayCountQuery);
+    const [topAlbumsByPlayCount] = await bigquery.query(topAlbumsByPlayCountQuery);
+    const [topTracksByPlayCount] = await bigquery.query(topTracksByPlayCountQuery);
+    const [topArtistsByMinutesPlayed] = await bigquery.query(topArtistsByMinutesPlayedQuery);
+    const [topAlbumsByMinutesPlayed] = await bigquery.query(topAlbumsByMinutesPlayedQuery);
+    const [topTracksByMinutesPlayed] = await bigquery.query(topTracksByMinutesPlayedQuery);
+    const [topArtistsByYear] = await bigquery.query(topArtistsByYearQuery);
+    const [topArtistsByYearAndMinutesPlayed] = await bigquery.query(topArtistsByYearAndMinutesPlayedQuery);
+    const [topTracksByYearMonthPlayCount] = await bigquery.query(topTracksByYearMonthPlayCountQuery);
+    const [topTracksByYearMonthMinutesPlayed] = await bigquery.query(topTracksByYearMonthMinutesPlayedQuery);
+    const [listeningTimeByDayOfWeek] = await bigquery.query(listeningTimeByDayOfWeekQuery);
+    const [listeningTimeByHourOfDay] = await bigquery.query(listeningTimeByHourOfDayQuery);
 
     const insights = {
-      basicInsights: basicInsights[0],
-      topTracks,
-      topArtists,
-      timeDistribution,
-      seasonalTopTracks,
-      platformUsage
+      topArtistsByPlayCount,
+      topAlbumsByPlayCount,
+      topTracksByPlayCount,
+      topArtistsByMinutesPlayed,
+      topAlbumsByMinutesPlayed,
+      topTracksByMinutesPlayed,
+      topArtistsByYear,
+      topArtistsByYearAndMinutesPlayed,
+      topTracksByYearMonthPlayCount,
+      topTracksByYearMonthMinutesPlayed,
+      listeningTimeByDayOfWeek,
+      listeningTimeByHourOfDay
     };
 
     await storeInsights(tableId, insights);
