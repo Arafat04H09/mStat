@@ -10,8 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emotion/react": "^11.13.5",
+    "@emotion/styled": "^11.13.5",
     "@firebase/app": "^0.10.12",
     "@firebase/auth": "^1.7.9",
+    "@mui/icons-material": "^6.1.9",
+    "@mui/material": "^6.1.9",
     "axios": "^1.7.7",
     "client": "file:",
     "firebase": "^10.14.0",

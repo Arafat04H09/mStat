@@ -1,26 +1,33 @@
-function HomePage() {
+import { Container, Typography, Button, Box } from '@mui/material';
+
+const HomePage = () => {
   return (
-    <div>
-      <div className="py-20 bg-green-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl font-bold text-gray-800 mb-4">
-            Your data, your insights
-          </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            A website dedicated to delivering you an inside look at your listening habits.
-          </p>
-          <div className="flex justify-center space-x-4">
-            <a
-              href="dashboard"
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-            >
-              Upload data
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Container maxWidth="lg">
+      <Box sx={{ py: 5, textAlign: 'center', backgroundColor: '#f0f4f8', mb: 4 }}>
+        <Typography variant="h2" gutterBottom>
+          Welcome to Your Music Journey
+        </Typography>
+        <Typography variant="h6" color="textSecondary" paragraph>
+          Discover insights and stories about your listening habits.
+        </Typography>
+        <Button variant="contained" color="primary" size="large" href = "/dashboard">
+          Get Started
+        </Button>
+      </Box>
+
+      <Box sx={{ py: 5, textAlign: 'center', mt: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          About Us
+        </Typography>
+        <Typography variant="body1" color="textSecondary" paragraph>
+          Confused about how to start?
+        </Typography>
+        <Button variant="outlined" color="primary">
+          Learn More
+        </Button>
+      </Box>
+    </Container>
   );
-}
+};
 
 export default HomePage;
